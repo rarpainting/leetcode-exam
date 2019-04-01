@@ -1,0 +1,6 @@
+**/.vscode/
+
+# go
+bin/
+pkg/
+
