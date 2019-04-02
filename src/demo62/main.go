@@ -47,3 +47,33 @@ func helper(row int, col int, m int, n int) int {
 	}
 	return helper(row+1, col, m, n) + helper(row, col+1, m, n)
 }
+
+func uniquePathsWithObstacles(obstacleGrid [][]int) int {
+	if len(obstacleGrid) == 0 {
+		return 0
+	} else if len(obstacleGrid[0]) == 0 {
+		return 0
+	} else if obstacleGrid[0][0] == 1 {
+		return 0
+	} /* else if len(obstacleGrid) == 1 || len(obstacleGrid[0]) == 1 {
+		return 1
+	} */
+
+	lenT, lenS := len(obstacleGrid)+1, len(obstacleGrid[0])+1
+
+	newObs := make([][]int, lenT) // m + 1
+	for i := range newObs {
+		newObs[i] = make([]int, lenS) // n + 1
+	}
+	newObs[0][1] = 1
+
+	for i := 1; i < lenT; i++ {
+		for j := 1; j < lenS; j++ {
+			if obstacleGrid[i-1][j-1] == 1 {
+				continue
+			}
+			newObs[i][j] = newObs[i-1][j] + newObs[i][j-1]
+		}
+	}
+	return newObs[lenT-1][lenS-1]
+}
