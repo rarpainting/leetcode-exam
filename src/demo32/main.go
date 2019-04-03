@@ -17,35 +17,35 @@ func main() {
 
 // 最长有效括号
 func longestValidparentheses(s string) (max int) {
-	sbyte, curMax := []byte(s), 0
-	stack := make([]byte, 0)
+	sbyte, start := []byte(s), 0
+	stack := make([]int, 0)
+
 	for i := range sbyte {
 		lstack := len(stack)
 		if sbyte[i] == byte(')') {
 			if lstack == 0 {
 				// 结束
-				if curMax > max {
-					max, curMax = curMax, 0
-				}
+				start = i + 1
 				continue
 			}
-			pre := stack[lstack-1]
+			// pop
+			// pre := stack[lstack-1]
 			stack = stack[:lstack-1]
-			if pre != byte('(') {
-				// 结束
-				if curMax > max {
-					max, curMax = curMax, 0
+			if len(stack) == 0 {
+				if max < i-start+1 {
+					max = i - start + 1
 				}
-				continue
 			} else {
-				curMax += 2
+				lstack = len(stack)
+				pre := stack[lstack-1]
+				stack = stack[:lstack-1]
+				if max < i-pre {
+					max = i - pre
+				}
 			}
 		} else {
-			stack = append(stack, sbyte[i])
+			stack = append(stack, i)
 		}
-	}
-	if curMax > max {
-		max = curMax
 	}
 
 	return
