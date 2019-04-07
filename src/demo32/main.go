@@ -34,16 +34,21 @@ func longestValidparentheses(s string) (max int) {
 
 			if len(stack) == 0 {
 				// 只修改 max
+				// 包含 '(' ')' 两个字符
 				if max < i-start+1 {
 					max = i - start + 1
 				}
-			} else {
+			} else { // ')' 符号 && lstack != 0 && lstack > 1
 				lstack = len(stack)
 
 				// pop
 				pre := stack[lstack-1]
 				// stack = stack[:lstack-1]
 
+				/* i-stack[lstack-1] 是什么 ?
+				i - stack[lstack-1] 是 i 到倒数第二个 '(' 的 [距离]
+				这个是 解决 '()(()' 的关键 ?
+				*/
 				if max < i-pre {
 					max = i - pre
 				}
@@ -58,7 +63,7 @@ func longestValidparentheses(s string) (max int) {
 
 func longestValidParenthesesDP(s string) (maxLen int) {
 	n := len(s)
-	dp := make([]int, n)
+	dp := make([]int, n) // 第 i 个字符前的最长括号串
 	for i := 2; i <= n; i++ {
 		j := i - 2 - dp[i-1]
 		if s[i-1] == '(' || j < 0 || s[j] == ')' {
