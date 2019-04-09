@@ -63,11 +63,11 @@ func grayCode(n int) []int {
 		return []int{0}
 	}
 
-	bit := 1 << uint(n)
+	bits := 1 << uint(n)
 
-	res := make([]int, bit)
+	res := make([]int, bits)
 
-	for i := 1; i < bit; i++ {
+	for i := 1; i < bits; i++ {
 		res[i] = i ^ (i >> 1)
 	}
 
@@ -80,12 +80,12 @@ func grayCode2(n int) []int {
 		return []int{0}
 	}
 
-	res := []int{0}
+	res, i, j, mask, resLen := []int{0}, 0, 0, 0, 0
 
-	for i := 0; i < n; i++ {
-		resLen := len(res)
-		mask := 1 << uint(i)
-		for j := resLen - 1; j >= 0; j-- {
+	for i = 0; i < n; i++ {
+		resLen = len(res)
+		mask = 1 << uint(i)
+		for j = resLen - 1; j >= 0; j-- {
 			res = append(res, res[j]|mask)
 		}
 	}
@@ -105,7 +105,31 @@ func grayCode3(n int) []int {
 		return []int{0}
 	}
 
+	bits := uint(1 << uint(n))
+
 	res := []int{0}
+	for i := uint(1); i < bits; i++ {
+		pre := uint(res[len(res)-1])
+		if i%2 == 1 {
+			// 改变最右的位元
+			// len-2 是除了第一位, 其余有效位皆为 1 === 0xfffffffe
+			pre = pre&(bits-2) | ^pre&1
+		} else {
+			// 改变右起的第一个为 1 的位元的左边位元
+			t, cnt := uint(1), pre
+			for (t & 1) != 1 {
+				cnt++
+				t >>= 1
+			}
+
+			// 取反某位
+			if (pre & (1 << cnt)) == 0 {
+				pre |= (1 << cnt)
+			} else {
+				pre &= ^(1 << cnt)
+			}
+		}
+	}
 
 	return res
 }
