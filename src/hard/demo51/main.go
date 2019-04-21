@@ -96,20 +96,78 @@ func solveNQueens1(n int) (res [][]string) {
 // 动态规划
 // 1. 把每个点归到 竖/左斜/右斜 的三大类中
 // 2. 把布尔操作改为 位操作
+
+// shu, pie, na := make([]bool, n), make([]bool, 2*n-2), make([]bool, 2*n-2)
+// 检查冲突的标准
+// pie 和 na 可以对于 行/列 对称
+// shu[col]
+// pie[row+col]
+// na[n-1-row+col]
 func solveNQueens2(n int) (res [][]string) {
 	if n == 0 {
 		return
 	}
-	// shu, pie, na := 0, 0, 0
-	// shu := make([]bool, n)
-	// pie := make([]bool, 2*n-2)
-	// na := make([]bool, 2*n-2)
 
-	// 检查冲突的标准
-	// pie 和 na 可以对于 行/列 对称
-	// shu[col]
-	// pie[row+col]
-	// na[n-1-row+col]
+	if 2*n-1 > 64 { // 未作位扩展
+		return
+	}
+	shu, pie, na := uint(0), uint(0), uint(0)
+
+	stack := []int{}
+
+	// push
+	stack = append(stack, 0)
+	// 初始化栈的首行的列号
+	lastN := uint(0)
+
+	for {
+		if len(stack) == 0 && lastN == uint(n)-1 {
+			return
+		} else if len(stack) == 0 {
+			lastN++
+			stack = append(stack, int(lastN))
+		}
+
+		// fmt.Printf("[stack-len]: %d \t[stack]: %d\n", len(stack), stack)
+
+		// 栈顶
+		last := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+
+		// 保证 last 和 前面的都不冲突
+		ok := true
+		if j, k := uint(len(stack)+last), uint(n)-1-uint(len(stack))+uint(last); (shu>>uint(last)|pie>>j|na>>k)&1 == 1 {
+			ok = false
+		}
+
+		if !ok || (ok && len(stack) == n-1) {
+			if ok && len(stack) == n-1 {
+				res = append(res, printQueue(n, append(stack, last)))
+			} /*  else { // !ok
+
+			} */
+
+			// 如果 last == n-1 , 则选择
+			for v := last; ; {
+				if v == n-1 {
+					if len(stack) == 0 {
+						return
+					}
+					v = stack[len(stack)-1]
+					stack = stack[:len(stack)-1]
+				} else {
+					if len(stack) == 0 {
+						lastN = uint(v + 1)
+					}
+					stack = append(stack, v+1)
+					break
+				}
+			}
+		} else {
+			// ok && len(stack) < n-1
+			stack = append(stack, last, 0)
+		}
+	}
 
 	return
 }
