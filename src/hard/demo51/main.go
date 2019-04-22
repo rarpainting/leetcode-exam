@@ -136,13 +136,19 @@ func solveNQueens2(n int) (res [][]string) {
 
 		// 保证 last 和 前面的都不冲突
 		ok := true
-		if j, k := uint(len(stack)+last), uint(n)-1-uint(len(stack))+uint(last); (shu>>uint(last)|pie>>j|na>>k)&1 == 1 {
+		j, k := uint(len(stack)+last), uint(n)-1-uint(len(stack))+uint(last)
+		if (shu>>uint(last)|pie>>j|na>>k)&1 == 1 {
 			ok = false
 		}
 
 		if !ok || (ok && len(stack) == n-1) {
 			if ok && len(stack) == n-1 {
 				res = append(res, printQueue(n, append(stack, last)))
+
+				// 标记占用
+				shu ^= 1 << uint(last)
+				pie ^= 1 << j
+				na ^= 1 << k
 			} /*  else { // !ok
 
 			} */
@@ -153,6 +159,12 @@ func solveNQueens2(n int) (res [][]string) {
 					if len(stack) == 0 {
 						return
 					}
+					// 标志清空
+					j, k := uint(len(stack)+v), uint(n)-1-uint(len(stack))+uint(v)
+					shu ^= 1 << uint(v)
+					pie ^= 1 << j
+					na ^= 1 << k
+
 					v = stack[len(stack)-1]
 					stack = stack[:len(stack)-1]
 				} else {
