@@ -20,7 +20,7 @@ var (
 
 func main() {
 	flag.Parse()
-	res := solveNQueens1(*nQueue)
+	res := solveNQueens2(*nQueue)
 	for _, v := range res {
 		fmt.Println(v)
 	}
@@ -145,16 +145,14 @@ func solveNQueens2(n int) (res [][]string) {
 			if ok && len(stack) == n-1 {
 				res = append(res, printQueue(n, append(stack, last)))
 
-				// 标记占用
-				shu ^= 1 << uint(last)
-				pie ^= 1 << j
-				na ^= 1 << k
 			} /*  else { // !ok
 
 			} */
 
 			// 如果 last == n-1 , 则选择
-			for v := last; ; {
+			v := stack[len(stack)-1] // 从倒数开始考虑 清空标志
+			stack = stack[:len(stack)-1]
+			for {
 				if v == n-1 {
 					if len(stack) == 0 {
 						return
@@ -178,6 +176,11 @@ func solveNQueens2(n int) (res [][]string) {
 		} else {
 			// ok && len(stack) < n-1
 			stack = append(stack, last, 0)
+
+			// 标记占用
+			shu ^= 1 << uint(last)
+			pie ^= 1 << j
+			na ^= 1 << k
 		}
 	}
 
