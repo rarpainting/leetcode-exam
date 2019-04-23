@@ -111,7 +111,7 @@ func solveNQueens2(n int) (res [][]string) {
 	if 2*n-1 > 64 { // 未作位扩展
 		return
 	}
-	shu, pie, na := uint(0), uint(0), uint(0)
+	shu, leftSlope, rightSlope := uint(0), uint(0), uint(0)
 
 	stack := []int{}
 
@@ -137,14 +137,13 @@ func solveNQueens2(n int) (res [][]string) {
 		// 保证 last 和 前面的都不冲突
 		ok := true
 		j, k := uint(len(stack)+last), uint(n)-1-uint(len(stack))+uint(last)
-		if (shu>>uint(last)|pie>>j|na>>k)&1 == 1 {
+		if (shu>>uint(last)|leftSlope>>j|rightSlope>>k)&1 == 1 {
 			ok = false
 		}
 
 		if !ok || (ok && len(stack) == n-1) {
 			if ok && len(stack) == n-1 {
 				res = append(res, printQueue(n, append(stack, last)))
-
 			} /*  else { // !ok
 
 			} */
@@ -160,8 +159,8 @@ func solveNQueens2(n int) (res [][]string) {
 					// 标志清空
 					j, k := uint(len(stack)+v), uint(n)-1-uint(len(stack))+uint(v)
 					shu ^= 1 << uint(v)
-					pie ^= 1 << j
-					na ^= 1 << k
+					leftSlope ^= 1 << j
+					rightSlope ^= 1 << k
 
 					v = stack[len(stack)-1]
 					stack = stack[:len(stack)-1]
@@ -179,11 +178,16 @@ func solveNQueens2(n int) (res [][]string) {
 
 			// 标记占用
 			shu ^= 1 << uint(last)
-			pie ^= 1 << j
-			na ^= 1 << k
+			leftSlope ^= 1 << j
+			rightSlope ^= 1 << k
 		}
 	}
 
+	return
+}
+
+// 通过 lowbit 枚举每行剩下有效的位置
+func solveNQueens3(n int) (res [][]string) {
 	return
 }
 
