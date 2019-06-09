@@ -47,20 +47,7 @@ func (t *ACAuto) Insert(word []byte, num int) {
 }
 
 func (t *ACAuto) InsertWithFailPoint(word []byte, num int) {
-	prv := t.Root
-
-	for _, wv := range word {
-		node := wv - 0x41
-		if prv.Children[node] == nil {
-			prv.Children[node] = &Node{
-				Point: -1,
-			}
-		}
-
-		prv = prv.Children[node]
-	}
-
-	prv.Point = num
+	t.Insert(word, num)
 
 	t.GenerateFailPoint()
 }
@@ -93,19 +80,28 @@ func (t *ACAuto) GenerateFailPoint() {
 			stack = stack[1:]
 
 			// 只操作 children
+		loop:
 			for si, sv := range pNode.Children {
 				if sv == nil {
 					continue
 				}
 
 				// parent->FailPoint->Children[si]
-				if pNode.Fail.Children[si] == nil {
-					sv.Fail = root
-					continue
+				var canFail *Node
+				for failNode := pNode.Fail; ; failNode, canFail = failNode.Fail, nil {
+					if failNode == nil {
+						// 找不到可行的 failNode
+						canFail = root
+					} else if failNode.Children[si] != nil {
+						canFail = failNode.Children[si]
+					}
+
+					if canFail != nil {
+						sv.Fail = canFail
+						stack = append(stack, sv)
+						continue loop
+					}
 				}
-				sv.Fail = pNode.Fail.Children[si]
-				// append(stack, parent)
-				stack = append(stack, sv)
 			}
 		}
 	}
