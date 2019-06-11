@@ -106,3 +106,29 @@ func (t *ACAuto) GenerateFailPoint() {
 		}
 	}
 }
+
+func (t *ACAuto) Search(query string) (ret [][2]int) {
+	lenQue, prv := len(query), t.Root
+	for i := 0; i < lenQue; i++ {
+		idx := query[i] - 'a'
+		for prv.Children[idx] == nil && prv != t.Root {
+			// Root 的 Fail 是它自身
+			prv = prv.Fail
+		}
+
+		if prv.Children[idx] == nil {
+			// 匹配失败
+			continue
+		}
+
+		prv = prv.Children[idx]
+
+		for tl := prv; tl != t.Root; tl = tl.Fail {
+			if tl.Point != -1 {
+				ret = append(ret, [2]int{tl.Point, int(idx)})
+			}
+		}
+	}
+
+	return
+}
