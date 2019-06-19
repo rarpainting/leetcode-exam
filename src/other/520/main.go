@@ -7,53 +7,61 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"math/big"
 	"sort"
+	"sync"
+	"sync/atomic"
 )
 
 var (
 	randLen = flag.Uint("rand-len", 0, "")
-	seedx   = flag.Int64("parts", 1, "")
+	percent = flag.Uint64("percent", 10, "允许范围, percent%")
 )
 
 func main() {
 	flag.Parse()
 
-	bigInt := big.NewInt(*seedx)
-	rand.Int(rand.Reader, bigInt)
 }
 
 func create() {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	threshold := uint32(0) // 认为合格的临界值
+
 	b := make([]byte, int(*randLen*4))
 	res := bytes2ints(generate(b))
 
 	dchan := make(chan uint32)
 	go func(b []uint32, ch chan<- uint32) {
-		ch <- uint32(len(b))
+		realLen, copyb := uint32(uint64(len(b)) / *percent), append([]uint32{}, b...)
+		ch <- realLen
+
 		for _, bi := range b {
 			ch <- bi
 		}
 
-		close(ch)
-
-		ge := Generate{G: b}
+		ge := Generate{G: copyb}
 		sort.Sort(&ge)
+		atomic.SwapUint32(&threshold, ge.G[uint32(len(copyb))-realLen])
+
+		close(ch)
+		wg.Done()
 	}(res, dchan)
 
-	getLen := <-dchan
-	realLen := int(float64(getLen) / *parts)
-
 	for i, max := 0, uint32(0); ; i++ {
+		realLen := int(<-dchan)
 		d, ok := <-dchan
 		if !ok {
 			fmt.Println("gg")
-			return
+			break
 		}
 
 		if i > realLen {
 			if max < d {
 				fmt.Printf("max of before: [%v], better: [%v]\n", max, d)
-				return
+				// 把剩余的倒掉
+				for range dchan {
+				}
+				break
 			}
 		} else {
 			if max < d {
@@ -61,6 +69,8 @@ func create() {
 			}
 		}
 	}
+
+	wg.Wait()
 }
 
 type A struct {
