@@ -1,3 +1,6 @@
+/*
+粗放粗样型遗传算法
+*/
 package genetic
 
 import (
