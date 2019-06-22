@@ -7,7 +7,6 @@ import (
 	"other/genetic"
 	"sort"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -32,32 +31,30 @@ func main() {
 	for i := 0; i < *YoungCount; i++ {
 		go func() {
 			// init
-			now, totalPos, totalScore := time.Now(), *Row**Column-1, int32(0)
+			now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
 			r := rand.New(rand.NewSource(now.Unix()))
 			g := genetic.GenerateGenetic(totalPos)
-			swg := sync.WaitGroup{}
-			swg.Add(*RunCount)
+
+			// 时间阻塞在 Done 方法上, 得不偿失
+			// swg := sync.WaitGroup{}
+			// swg.Add(*RunCount)
 
 			for j := 0; j < *RunCount; j++ {
-				go func() {
-					m := genetic.GenerateMap(*Row, *Column)
-					score := genetic.Score(0)
+				m := genetic.GenerateMap(*Row, *Column)
+				score := genetic.Score(0)
 
-					for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
-						sc, pos = m.Do(pos, g.Rule(m, pos))
-						score += sc
-					}
-					atomic.AddInt32(&totalScore, int32(score))
+				for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
+					sc, pos = m.Do(pos, g.Rule(m, pos))
+					score += sc
+				}
+				totalScore += score
 
-					swg.Done()
-				}()
 			}
-			swg.Wait()
 
 			mx.Lock()
 			results = append(results, Result{
 				g:     g,
-				score: genetic.Score(int(totalScore) / *RunCount),
+				score: totalScore / genetic.Score(*RunCount),
 				time:  time.Now().Sub(now),
 			})
 			mx.Unlock()
@@ -92,30 +89,25 @@ func main() {
 				}()
 
 				// init
-				now, totalPos, totalScore := time.Now(), *Row**Column-1, int32(0)
+				now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
 				r := rand.New(rand.NewSource(now.Unix()))
-				swg := sync.WaitGroup{}
-				swg.Add(*RunCount)
 
 				for j := 0; j < *RunCount; j++ {
-					go func() {
-						m := genetic.GenerateMap(*Row, *Column)
-						score := genetic.Score(0)
+					// go func() {
+					m := genetic.GenerateMap(*Row, *Column)
+					score := genetic.Score(0)
 
-						for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
-							sc, pos = m.Do(pos, newGens[i].Rule(m, pos))
-							score += sc
-						}
-						atomic.AddInt32(&totalScore, int32(score))
-						swg.Done()
-					}()
+					for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
+						sc, pos = m.Do(pos, newGens[i].Rule(m, pos))
+						score += sc
+					}
+					totalScore += score
 				}
-				swg.Wait()
 
 				mx.Lock()
 				results = append(results, Result{
 					g:     &newGens[i],
-					score: genetic.Score(int(totalScore) / *RunCount),
+					score: totalScore / genetic.Score(*RunCount),
 					time:  time.Now().Sub(now),
 				})
 				mx.Unlock()
