@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/google/gops/agent"
 	"math/rand"
 	"other/genetic"
 	"sort"
@@ -21,6 +22,10 @@ var (
 )
 
 func main() {
+	if err := agent.Listen(agent.Options{}); err != nil {
+		panic(err)
+	}
+
 	flag.Parse()
 	wg := sync.WaitGroup{}
 	mx, results := sync.Mutex{}, []Result{}
@@ -118,7 +123,7 @@ func main() {
 		wg.Wait()
 
 		sort.Sort(ResultSlice(results))
-		fmt.Printf("first: [%v] second: [%v] | %v\n", results[0].score, results[1].score, time.Now().Sub(now))
+		fmt.Printf("first: [%v] second: [%v] last:[%v] | %v\n", results[0].score, results[1].score, results[len(results)-1].score, time.Now().Sub(now))
 	}
 }
 
