@@ -7,7 +7,7 @@ import (
 
 // 遗传算法
 type Genetic struct {
-	g []Operate
+	G []Operate
 }
 
 func GenerateGenetic(grLen int) *Genetic {
@@ -19,12 +19,12 @@ func GenerateGenetic(grLen int) *Genetic {
 	}
 
 	return &Genetic{
-		g: g,
+		G: g,
 	}
 }
 
 func (g *Genetic) Rule(m *Map, primPos int) Operate {
-	return g.g[primPos]
+	return g.G[primPos]
 }
 
 type HybridMachan struct {
@@ -38,18 +38,26 @@ func NewHybrid() *HybridMachan {
 }
 
 // 杂交
-func (hb *HybridMachan) Hybrid(g1 *Genetic, g2 *Genetic, varCount int, gCount int) []Genetic {
-	g := make([]Genetic, gCount)
-	lenOfGen, halfOfGen, remain := len(g1.g), len(g1.g)/2, int(EatOP+1)
+// varCount: 变异的数量
+// gCount: 杂交的次一代的数量
+func (hb *HybridMachan) Hybrid(g1 *Genetic, g2 *Genetic, varCount int, gCount int, bybrid func(g1, g2 *Genetic) (g12, g21 *Genetic)) []Genetic {
+	gs := make([]Genetic, gCount)
+	lenOfGen, remain := len(g1.G), int(EatOP+1)
 
-	g12 := append([]Operate{}, g1.g[:halfOfGen]...)
-	g12 = append(g12, g2.g[halfOfGen:]...)
-	g21 := append([]Operate{}, g2.g[:halfOfGen]...)
-	g21 = append(g21, g1.g[halfOfGen:]...)
+	g12, g21 := bybrid(g1, g2)
 	for i := 0; i < gCount/2; i++ {
-		lenOfCut := hb.r.Intn(lenOfGen)
-		 := hb.r.Intn(remain)
+		newG12 := Genetic{
+			G: append([]Operate{}, g12.G...),
+		}
+		newG21 := Genetic{
+			G: append([]Operate{}, g21.G...),
+		}
+		for j := 0; j < varCount; j++ {
+			newG12.G[hb.r.Intn(lenOfGen)] = Operate(hb.r.Intn(remain))
+			newG21.G[hb.r.Intn(lenOfGen)] = Operate(hb.r.Intn(remain))
+		}
+		gs[2*i], gs[2*i+1] = newG12, newG21
 	}
 
-	return g
+	return gs
 }

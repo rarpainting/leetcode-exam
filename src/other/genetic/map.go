@@ -18,12 +18,12 @@ type Map struct {
 	m       []MapPoint
 }
 
-func Generate(rows, columns int) *Map {
+func GenerateMap(rows, columns int) *Map {
 	m := Map{Rows: rows, Columns: columns}
 	m.m = make([]MapPoint, rows*columns)
 
 	food := 0
-	foodLimit := rows * columns / 2
+	foodLimit := rows * columns / 3
 	for i := rows; i < rows*(columns-1); i++ {
 		if i/rows == 0 || (i+1)/rows == 0 {
 			m.m[i] = MapWall
@@ -79,6 +79,7 @@ func (m *Map) Do(pos int, op Operate) (score Score, newPos int) {
 	case EatOP:
 		if m.m[pos] == MapFood {
 			score, newPos = EatThingSC, pos
+			m.m[pos] = MapNotThing
 		} else {
 			score, newPos = EatNothingSC, pos
 		}
