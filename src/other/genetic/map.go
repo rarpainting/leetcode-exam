@@ -2,6 +2,7 @@ package genetic
 
 import (
 	"math/rand"
+	"time"
 )
 
 type MapPoint byte
@@ -15,36 +16,37 @@ const (
 type Map struct {
 	Rows    int
 	Columns int
-	m       []MapPoint
+	M       []MapPoint
 }
 
 func GenerateMap(rows, columns int) *Map {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
 	m := Map{Rows: rows, Columns: columns}
-	m.m = make([]MapPoint, rows*columns)
+	m.M = make([]MapPoint, rows*columns)
 
 	food := 0
 	foodLimit := rows * columns / 3
 	for i := rows; i < rows*(columns-1); i++ {
-		if i/rows == 0 || (i+1)/rows == 0 {
-			m.m[i] = MapWall
+		if i%rows == 0 || (i+1)%rows == 0 {
+			m.M[i] = MapWall
 		} else {
 			if food == foodLimit {
-				m.m[i] = 1
+				m.M[i] = MapNotThing
 				continue
 			}
 
-			ri := MapPoint(rand.Intn(2))
+			ri := MapPoint(r.Intn(int(MapWall)))
 			if ri == MapFood {
 				food++
 			}
-			m.m[i] = ri
+			m.M[i] = ri
 		}
 	}
 
 	// 把墙堵上
 	for i, lastRows := 0, rows*(columns-1); i < rows; i++ {
-		m.m[i] = MapWall
-		m.m[i+lastRows] = MapWall
+		m.M[i] = MapWall
+		m.M[i+lastRows] = MapWall
 	}
 
 	return &m
@@ -77,12 +79,30 @@ func (m *Map) Do(pos int, op Operate) (score Score, newPos int) {
 			score, newPos = DownSC, pos+m.Rows
 		}
 	case EatOP:
-		if m.m[pos] == MapFood {
+		if m.M[pos] == MapFood {
 			score, newPos = EatThingSC, pos
-			m.m[pos] = MapNotThing
+			m.M[pos] = MapNotThing
 		} else {
 			score, newPos = EatNothingSC, pos
 		}
 	}
 	return
+}
+
+func (m *Map) String() string {
+	str := ""
+	for i, v := range m.M {
+		switch v {
+		case MapFood:
+			str += "*"
+		case MapNotThing:
+			str += " "
+		case MapWall:
+			str += "W"
+		}
+		if (i+1)%m.Rows == 0 {
+			str += "\n"
+		}
+	}
+	return str
 }

@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/google/gops/agent"
 	"math/rand"
+	"net/http"
+	_ "net/http/pprof"
 	"other/genetic"
 	"sort"
 	"sync"
@@ -17,14 +18,14 @@ var (
 
 	YoungCount   = flag.Int("young-count", 1000, "新生代数量")
 	RunCount     = flag.Int("run-count", 1000, "每代运行次数")
-	VariateCount = flag.Int("variate-count", 10, "变异数量")
+	VariateCount = flag.Int("variate-count", 20, "变异数量")
 	TotalStep    = flag.Int("total-step", 200, "步数")
 )
 
 func main() {
-	if err := agent.Listen(agent.Options{}); err != nil {
-		panic(err)
-	}
+	go func() {
+		panic(http.ListenAndServe(":6060", nil))
+	}()
 
 	flag.Parse()
 	wg := sync.WaitGroup{}
@@ -36,32 +37,17 @@ func main() {
 	for i := 0; i < *YoungCount; i++ {
 		go func() {
 			// init
-			now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
-			r := rand.New(rand.NewSource(now.Unix()))
+			totalPos := *Row**Column - 1
 			g := genetic.GenerateGenetic(totalPos)
 
 			// 时间阻塞在 Done 方法上, 得不偿失
 			// swg := sync.WaitGroup{}
 			// swg.Add(*RunCount)
 
-			for j := 0; j < *RunCount; j++ {
-				m := genetic.GenerateMap(*Row, *Column)
-				score := genetic.Score(0)
-
-				for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
-					sc, pos = m.Do(pos, g.Rule(m, pos))
-					score += sc
-				}
-				totalScore += score
-
-			}
+			res := generateResult(g)
 
 			mx.Lock()
-			results = append(results, Result{
-				g:     g,
-				score: totalScore / genetic.Score(*RunCount),
-				time:  time.Now().Sub(now),
-			})
+			results = append(results, *res)
 			mx.Unlock()
 			wg.Done()
 		}()
@@ -73,7 +59,8 @@ func main() {
 	sort.Sort(ResultSlice(results))
 	fmt.Printf("first: [%v] second: [%v] last:[%v] | %v\n", results[0].score, results[1].score, results[len(results)-1].score, time.Now().Sub(now))
 
-	for {
+	for genNum := 0; ; genNum++ {
+		now = time.Now()
 		// 杂交
 		g1, g2 := results[0], results[1]
 		hybrid := genetic.NewHybrid()
@@ -84,37 +71,10 @@ func main() {
 		wg.Add(*YoungCount)
 
 		for i := 0; i < *YoungCount; i++ {
-			now = time.Now()
 			go func(i int) {
-				defer func() {
-					if e := recover(); e != nil {
-						fmt.Printf("i:[%v] lenOfNewGens: [%v]\n", i, len(newGens))
-						panic(e)
-					}
-				}()
-
-				// init
-				now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
-				r := rand.New(rand.NewSource(now.Unix()))
-
-				for j := 0; j < *RunCount; j++ {
-					// go func() {
-					m := genetic.GenerateMap(*Row, *Column)
-					score := genetic.Score(0)
-
-					for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
-						sc, pos = m.Do(pos, newGens[i].Rule(m, pos))
-						score += sc
-					}
-					totalScore += score
-				}
-
+				res := generateResult(&newGens[i])
 				mx.Lock()
-				results = append(results, Result{
-					g:     &newGens[i],
-					score: totalScore / genetic.Score(*RunCount),
-					time:  time.Now().Sub(now),
-				})
+				results = append(results, *res)
 				mx.Unlock()
 				wg.Done()
 			}(i)
@@ -123,7 +83,9 @@ func main() {
 		wg.Wait()
 
 		sort.Sort(ResultSlice(results))
-		fmt.Printf("first: [%v] second: [%v] last:[%v] | %v\n", results[0].score, results[1].score, results[len(results)-1].score, time.Now().Sub(now))
+		fmt.Printf("{%v} first: [%v] second: [%v] last:[%v] | %v\n", genNum,
+			results[0].score, results[1].score, results[len(results)-1].score,
+			time.Now().Sub(now))
 	}
 }
 
@@ -164,4 +126,27 @@ func Hybrid(g1, g2 *genetic.Genetic) (g12, g21 *genetic.Genetic) {
 	g21.G = append(g21.G, g1.G[halfOfLen:]...)
 
 	return
+}
+
+func generateResult(g *genetic.Genetic) *Result {
+	// init
+	now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
+	r := rand.New(rand.NewSource(now.Unix()))
+
+	for j := 0; j < *RunCount; j++ {
+		m := genetic.GenerateMap(*Row, *Column)
+		score := genetic.Score(0)
+
+		for k, sc, pos := 0, genetic.Score(0), r.Intn(totalPos); k < *TotalStep; k++ {
+			sc, pos = m.Do(pos, g.Rule(m, pos))
+			score += sc
+		}
+		totalScore += score
+	}
+
+	return &Result{
+		g:     g,
+		score: totalScore / genetic.Score(*RunCount),
+		time:  time.Now().Sub(now),
+	}
 }

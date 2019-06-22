@@ -18,7 +18,6 @@ const (
 	UpSC    Score = 0
 	DownSC  Score = 0
 
-	StopSC       Score = 0
 	HitBackSC    Score = -5
 	EatNothingSC Score = -2
 	EatThingSC   Score = 10

@@ -11,10 +11,11 @@ type Genetic struct {
 }
 
 func GenerateGenetic(grLen int) *Genetic {
+	realLen := grLen * 3 // 总共有 pos * 3
 	r, remain := rand.New(rand.NewSource(time.Now().Unix())), EatOP+1
-	g := make([]Operate, grLen)
+	g := make([]Operate, realLen)
 
-	for i := 0; i < grLen; i++ {
+	for i := 0; i < realLen; i++ {
 		g[i] = Operate(r.Intn(int(remain)))
 	}
 
@@ -24,7 +25,7 @@ func GenerateGenetic(grLen int) *Genetic {
 }
 
 func (g *Genetic) Rule(m *Map, primPos int) Operate {
-	return g.G[primPos]
+	return g.G[primPos*int(m.M[primPos])]
 }
 
 type HybridMachan struct {
@@ -60,4 +61,24 @@ func (hb *HybridMachan) Hybrid(g1 *Genetic, g2 *Genetic, varCount int, gCount in
 	}
 
 	return gs
+}
+
+func (g *Genetic) String() string {
+	str := ""
+	for _, v := range g.G {
+		switch v {
+		case TurnLeftOP:
+			str += " <-"
+		case TurnRightOP:
+			str += " ->"
+		case TurnUpOP:
+			str += " v"
+		case TurnDownOP:
+			str += " ^"
+		case EatOP:
+			str += " E"
+		}
+	}
+
+	return str
 }
