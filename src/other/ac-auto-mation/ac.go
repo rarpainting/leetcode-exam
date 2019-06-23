@@ -2,15 +2,11 @@
 多模式串匹配
 ac 自动机
 */
-package main
+package auautomation
 
 const (
 	CountOfChildren = 26
 )
-
-func main() {
-
-}
 
 type Node struct {
 	// Value    rune
@@ -25,8 +21,8 @@ type ACAuto struct {
 	Root *Node
 }
 
-func NewAC() {
-
+func NewAC() *ACAuto {
+	return &ACAuto{Root: &Node{}}
 }
 
 func (t *ACAuto) Insert(word []byte, num int) {
@@ -46,17 +42,20 @@ func (t *ACAuto) Insert(word []byte, num int) {
 	prv.Point = num
 }
 
-func (t *ACAuto) InsertWithFailPoint(word []byte, num int) {
+func (t *ACAuto) InsertWithFail(word []byte, num int) {
 	t.Insert(word, num)
 
-	t.GenerateFailPoint()
+	t.GenerateFail()
 }
 
 // 构建失配指针
-// 对于一个节点 C, 标识字符 a,
-// 顺着 C 的父亲节点的失配指针走, 走到第一个有儿子也是 a 的节点 T, 那么 C 的失配指针就指向 T 的标识 a 的儿子节点
+//
+// 对于一个节点 C, 标识字符 a
+//
+// 顺着 C 的父亲节点(parent)的失配指针(fail)走, 走到第一个儿子也是 a 的节点 T=parent.Children[i] , 那么 C 的失配指针就指向 T 的标识 a 的儿子节点
+//
 // 如果找不到这个节点，那么失配指针指向 Root
-func (t *ACAuto) GenerateFailPoint() {
+func (t *ACAuto) GenerateFail() {
 	root := t.Root
 	root.Fail = root
 	stack := []*Node{}
