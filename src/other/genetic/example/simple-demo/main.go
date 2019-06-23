@@ -30,12 +30,16 @@ func main() {
 	flag.Parse()
 	wg := sync.WaitGroup{}
 	mx, results := sync.Mutex{}, []Result{}
+	rs := make([]rand.Rand, *YoungCount)
+	for i := range rs {
+		rs[i] = *rand.New(rand.NewSource(time.Now().Add(time.Second).Unix()))
+	}
 
 	now := time.Now()
 	wg.Add(*YoungCount)
 	// 先 YoungCount 次
 	for i := 0; i < *YoungCount; i++ {
-		go func() {
+		go func(i int) {
 			// init
 			totalPos := *Row**Column - 1
 			g := genetic.GenerateGenetic(totalPos)
@@ -44,13 +48,13 @@ func main() {
 			// swg := sync.WaitGroup{}
 			// swg.Add(*RunCount)
 
-			res := generateResult(g)
+			res := generateResult(g, &rs[i])
 
 			mx.Lock()
 			results = append(results, *res)
 			mx.Unlock()
 			wg.Done()
-		}()
+		}(i)
 	}
 
 	wg.Wait()
@@ -72,7 +76,7 @@ func main() {
 
 		for i := 0; i < *YoungCount; i++ {
 			go func(i int) {
-				res := generateResult(&newGens[i])
+				res := generateResult(&newGens[i], &rs[i])
 				mx.Lock()
 				results = append(results, *res)
 				mx.Unlock()
@@ -128,10 +132,9 @@ func Hybrid(g1, g2 *genetic.Genetic) (g12, g21 *genetic.Genetic) {
 	return
 }
 
-func generateResult(g *genetic.Genetic) *Result {
+func generateResult(g *genetic.Genetic, r *rand.Rand) *Result {
 	// init
 	now, totalPos, totalScore := time.Now(), *Row**Column-1, genetic.Score(0)
-	r := rand.New(rand.NewSource(now.Unix()))
 
 	for j := 0; j < *RunCount; j++ {
 		m := genetic.GenerateMap(*Row, *Column)
