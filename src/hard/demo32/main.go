@@ -1,3 +1,6 @@
+/*
+最长有效括号
+*/
 package main
 
 import (
@@ -45,9 +48,10 @@ func longestValidparentheses(s string) (max int) {
 				pre := stack[lstack-1]
 				// stack = stack[:lstack-1]
 
-				/* i-stack[lstack-1] 是什么 ?
-				i - stack[lstack-1] 是 i 到倒数第二个 '(' 的 [距离]
-				这个是 解决 '()(()' 的关键 ?
+				/*
+					i-stack[lstack-1] 是什么 ?
+					i - stack[lstack-1] 是 i 到倒数第二个 '(' 的 [距离]
+					这个是 解决 '()(()' 的关键 ?
 				*/
 				if max < i-pre {
 					max = i - pre

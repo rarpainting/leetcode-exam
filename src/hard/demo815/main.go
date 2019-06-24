@@ -45,7 +45,8 @@ func numBusesToDestination(routes [][]int, S int, T int) int {
 		return 0
 	}
 
-	// 能到达该站点的公交车索引
+	// 前置构建
+	// 能到达 该站点(i) 的 公交车索引([]Bus)
 	// 即 站台 busStop[i] 为 结点, 公交车 routes[j] 为线的最短路径
 	busStop := make(map[int][]Bus)
 	for i, v := range routes {
@@ -58,6 +59,7 @@ func numBusesToDestination(routes [][]int, S int, T int) int {
 	}
 
 	// 一开始就有序, 我排序你 mua
+
 	stack := []int{S}                // [站点]栈
 	visitedSet := make(map[int]bool) // 已遍历的[站点]
 	res := 0
