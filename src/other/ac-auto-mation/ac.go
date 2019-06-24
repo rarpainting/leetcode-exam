@@ -8,6 +8,8 @@ const (
 	CountOfChildren = 26
 )
 
+// Fail point 依赖于这个基础: Parent.Fail.Depth < Parent.Depth 恒成立
+// 因此, Prev.Fail.Depth < Parent.Depth 同样恒成立
 type Node struct {
 	// Value    rune
 	Father   *Node
