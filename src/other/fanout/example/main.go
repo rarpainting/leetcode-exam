@@ -9,7 +9,6 @@ import (
 
 	"github.com/rarpainting/glog"
 
-	"mesdata"
 	"other/fanout"
 )
 
@@ -21,10 +20,8 @@ const (
 var (
 	pAddr    = flag.String("p-addr", "192.168.0.1:502", "")
 	pSlaveID = flag.Uint("p-slaveid", 1, "")
-	lAddr    = flag.String("l-addr", "192.168.0.2:502", "")
-	lSlaveID = flag.Uint("l-slaveid", 1, "")
 
-	Addr = flag.String("port", ":11523", "服务端地址")
+	Addr = flag.String("port", ":http", "服务端地址")
 )
 
 func main() {
@@ -34,9 +31,9 @@ func main() {
 	pInterrupt := ConnectModbus(p, *pAddr, byte(*pSlaveID), func(controller *fanout.MBController) (chan<- bool, error) {
 		return controller.Connect(false, 0, 2, func(b []byte) (res interface{}, err error) {
 			if len(b) < 2*2 {
-				return nil, mesdata.ErrTooLittle
+				return nil, customdata.ErrTooLittle
 			}
-			p, err := mesdata.TranslatePment(b)
+			p, err := customdata.TranslatePment(b)
 			if err != nil {
 				return nil, fmt.Errorf("P Error: %v", err)
 			}
@@ -47,21 +44,7 @@ func main() {
 		pInterrupt <- true
 	}()
 
-	//////////////////////////////////////////////
-	// 在线/离线 叠片设备
-	lInterrupt := ConnectModbus(l, *lAddr, byte(*lSlaveID),
-		func(controller *fanout.MBController) (chan<- bool, error) {
-			return controller.Connect(false, 0, 2, func(b []byte) (interface{}, error) {
-				glog.Debugln(":recieve ", b)
-				return mesdata.TranslateL(b)
-			})
-		})
-	defer func() {
-		lInterrupt <- true
-	}()
-
 	/////////////////////////////////////////////////
-	// TCP 连接
 	lsInterrupt := ConnectTCP(laser, *lAddr,
 		func(controller *fanout.Controller) (chan<- bool, error) {
 			return controller.Connect(false,
@@ -71,7 +54,7 @@ func main() {
 						// 重连
 						return nil, 0, err
 					}
-					laser, err := mesdata.BytesToLaser(b[:n])
+					laser, err := customdata.BytesToLaser(b[:n])
 					if err != nil {
 						return nil, n, err
 					}
@@ -130,21 +113,21 @@ func ConnectModbus(controller *MBController, mbAddr string, mbSlaveID byte, conn
 func ConnectTCP(controller *Controller, addr string, connectHandle func(*fanout.Controller) (chan<- bool, error)) chan<- bool {
 	interrupt := make(chan bool)
 	go func() {
-		fanoutController, err := fanout.NewController(addr, minTimeout)
-		if err != nil {
-			glog.Fatalln("::", addr, ":new controller err: ", err.Error())
-		}
-		glog.Infoln(addr, ":new controller ok")
+		var fanoutController *fanout.Controller
+		var err error
 
-		sinterrupt, err := make(chan<- bool), nil
 		for {
-			sinterrupt, err = connectHandle(fanoutController)
+			fanoutController, err = fanout.NewController(addr, minTimeout)
 			if err != nil {
-				time.Sleep(50 * time.Millisecond)
+				glog.Errorln("::", addr, ":new controller err: ", err.Error())
 				continue
 			}
 			break
 		}
+
+		glog.Infoln(addr, ":new controller ok")
+
+		sinterrupt, _ := connectHandle(fanoutController)
 
 		controller.C = fanoutController
 		for {
