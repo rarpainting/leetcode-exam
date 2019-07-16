@@ -10,6 +10,17 @@ import (
 	gouuid "github.com/satori/go.uuid"
 )
 
+const (
+	MinHold = 25
+	// MinDisc ReadDiscreteInputs's minimum number of read operation
+	MinDisc = 128
+	// MinCoil ReadCoils's minimum number of read operation
+	MinCoil = 128
+
+	MaxTimeout = 3 * time.Second
+	MinTimeout = 1000 * time.Millisecond
+)
+
 // MBSession 会话
 type MBSession struct {
 	c modbus.Client
@@ -95,11 +106,14 @@ type read struct {
 type MBController struct {
 	s *MBSession
 
-	read chan interface{} // 创建的 输入 通道列表
+	// 创建的 输入 通道列表
+	read chan interface{}
 
-	write map[string]*write // 缓存下来的 输出 通道列表
+	// 缓存下来的 输出 通道列表
+	write map[string]*write
 
-	mutex sync.Mutex // 对 []write 的锁
+	// 对 []write 的锁
+	mutex sync.Mutex
 }
 
 // NewModbusController 设置 Modbus 连接会话
@@ -148,17 +162,18 @@ func (c *MBController) Connect(async bool, address, quantity uint16, handleFunc 
 			b, err := s.c.ReadHoldingRegisters(address, quantity) // 4X 数据寄存器
 
 			if err != nil {
-				glog.Error("ReadHoldingRegisters Error", err.Error())
+				glog.Error("[ReadHoldingRegisters Error]", err.Error())
 
-				s.h.Close()
+				s.Close()
 
 				// 中途出现连接故障, 则
 				// 以 200 << [0~4] ms 的渐慢重连
 				for reconnectCount := uint(0); ; {
 					time.Sleep(50 * time.Millisecond)
 
-					err = s.h.Connect()
+					err = s.Connect()
 					if err == nil {
+						glog.Errorln("[Reconnection Error]", err.Error())
 						continue READ_HOLDING
 					}
 
@@ -170,15 +185,14 @@ func (c *MBController) Connect(async bool, address, quantity uint16, handleFunc 
 				}
 			}
 
-			glog.Infof("::connect: mb data is: (want=%d, len=%d) %x\n", quantity, len(b), b)
+			glog.Debugf("::connect: mb data is: (want=%d, len=%d) %x\n", quantity, len(b), b)
 
-			// log.Println("::connect: handle data to structure")
 			res, err := handleFunc(b)
 			if err != nil {
-				glog.Errorln("handleFunc Error", err.Error())
+				glog.Errorln("[handleFunc Error]", err.Error())
 				continue READ_HOLDING
 			}
-			// log.Println("::connect: data -> c.read")
+
 			c.read <- res
 			time.Sleep(UpdateRate)
 		}
@@ -257,9 +271,8 @@ func (c *MBController) fanOut(chRead <-chan interface{}, async bool) chan<- bool
 
 		// 从 read 写入到 write
 		toWrite := func(read interface{}, write *write) {
-			// BUG: 怎么导致出现 空的情况 ?
 			if read == nil || write == nil {
-				glog.Error("[Error]", "read OR write is nil", "[Read]:", read, "[Write]:", write)
+				glog.Error("[fanout Error]", "read OR write is nil", "[Read]:", read, "[Write]:", write)
 				return
 			}
 
@@ -278,7 +291,7 @@ func (c *MBController) fanOut(chRead <-chan interface{}, async bool) chan<- bool
 				}
 				c.mutex.Lock() // 放在前面部分原因是防止中途 c.write 被改写
 				for key, write := range c.write {
-					write := write // 意图在哪 ?
+					write := write
 
 					if write.ShouldCancel {
 						// 调用 CancelWrite, 在这里真正关闭 通道, 且删除

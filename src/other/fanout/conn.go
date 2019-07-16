@@ -11,27 +11,19 @@ import (
 )
 
 const (
-	MinHold = 25
-	// MinDisc ReadDiscreteInputs 的最小读取数
-	MinDisc = 128
-	// MinCoil ReadCoils 的最小读取数
-	MinCoil = 128
-
-	MaxTimeout = 3 * time.Second
-	MinTimeout = 1000 * time.Millisecond
-
 	UpdateRate      = 500 * time.Millisecond
 	KeepAlivePeriod = 100 * time.Millisecond
 )
 
-// Session 会话
+// Session
 type Session struct {
 	address string
 	timeout time.Duration
 	conn    *net.TCPConn
 }
 
-// NewSession 创建会话
+// NewSession create session
+// NewSession will create a connection for itself and cache it to the Session
 func NewSession(address string, timeout time.Duration) (*Session, error) {
 	if timeout < MinTimeout || timeout > MaxTimeout {
 		return nil, fmt.Errorf("timeout must between on %v to %v", MinTimeout, MaxTimeout)
@@ -55,7 +47,12 @@ func NewSession(address string, timeout time.Duration) (*Session, error) {
 	}, nil
 }
 
-func (s *Session) Connect() error {
+// ReConnect reconnection
+func (s *Session) ReConnect() error {
+	if s.conn != nil {
+		s.Close()
+	}
+
 	conn, err := net.DialTimeout("tcp", s.address, s.timeout)
 	if err != nil {
 		return err
@@ -72,10 +69,12 @@ func (s *Session) Connect() error {
 }
 
 func (s *Session) Close() error {
-	return s.conn.Close()
+	conn := s.conn
+	s.conn = nil
+	return conn.Close()
 }
 
-// 把常用的复制出去
+//
 func (s *Session) Read(b []byte) (n int, err error) {
 	return s.conn.Read(b)
 }
@@ -92,12 +91,6 @@ func (s *Session) SetWriteDeadline(t time.Time) error {
 	return s.conn.SetWriteDeadline(t)
 }
 
-// type read struct {
-// 	Disc []byte
-// 	Coil []byte
-// 	Rhr  []byte
-// }
-
 type write struct {
 	Ch           chan interface{}
 	ShouldCancel bool
@@ -107,14 +100,20 @@ type write struct {
 type Controller struct {
 	s *Session
 
-	read chan interface{} // 创建的 输入 通道列表
+	// 创建的 输入 通道列表
+	read chan interface{}
 
-	write map[string]*write // 缓存下来的 输出 通道列表
+	// 缓存下来的 输出 通道列表
+	write map[string]*write
 
-	mutex sync.Mutex // 对 []write 的锁
+	// 对 []write 的锁
+	mutex sync.Mutex
 }
 
-// NewController 设置 Modbus 连接会话
+// NewController Secondary package of connection session
+// Controller 用于封装一收多发机制(fanout), 以及提供对该机制的操作(添加终端读成员, 关闭读来源)
+// Controller Used to encapsulate a fanout
+// and provide operations on the mechanism (adding terminal read members, closing read source, etc.)
 func NewController(address string, timeout time.Duration) (*Controller, error) {
 	s, err := NewSession(address, timeout)
 	if err != nil {
@@ -127,14 +126,16 @@ func NewController(address string, timeout time.Duration) (*Controller, error) {
 	}, nil
 }
 
-// Connect 开启实际连接
-func (c *Controller) Connect(async bool, readFunc func(net.Conn, []byte) (interface{}, int, error)) (
+// SetReadSource 设置读来源的单次读取函数, 以及开启一个用于 fanout 的 goroutine
+// SetReadSource set read source operation and create a goroutine for fanout
+func (c *Controller) SetReadSource(async bool, readFunc func(net.Conn, []byte) (interface{}, int, error)) (
 	interrupt chan<- bool, err error) {
 	c.read = make(chan interface{})
 	s := c.s
 
 	interrupt = c.fanOut(c.read, async) // Tee 协程 // NOTE: 关闭 read channel
 
+	// 读来源的 goroutine
 	go func() {
 		defer s.Close()
 		defer c.CancelRead()
@@ -152,15 +153,19 @@ func (c *Controller) Connect(async bool, readFunc func(net.Conn, []byte) (interf
 
 			// 如果出现 error code , 会出现以 50ms 重连的怪像
 			if err != nil {
-				s.conn.Close()
+				// TODO: 不同的 error 应该有其他的对策, 而不是一贯的断线重连
+				glog.Errorln("[Fanout Error]", err.Error())
+
+				s.Close()
 
 				// 中途出现连接故障, 则
 				// 以 200 << [0~4] ms 的渐慢重连
 				for reconnectCount := uint(0); ; {
 					time.Sleep(300 * time.Millisecond)
 
-					err = s.Connect()
+					err = s.ReConnect()
 					if err == nil {
+						glog.Errorln("[Reconnection Error]", err.Error())
 						continue READ_HOLDING
 					}
 
@@ -189,6 +194,7 @@ func (c *Controller) DisConnect() error {
 
 // AddWrite 添加输出通道
 func (c *Controller) AddWrite() (string, <-chan interface{}, error) {
+	// golang 的 mutex 没有 trylock
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -252,9 +258,9 @@ func (c *Controller) fanOut(chRead <-chan interface{}, async bool) chan<- bool {
 
 		// 从 read 写入到 write
 		toWrite := func(read interface{}, write *write) {
-			// BUG: 怎么导致出现 空的情况 ?
+			// 怎么导致出现 空的情况 ?
 			if read == nil || write == nil {
-				glog.Errorln("[Error]", "read OR write is nil", "[Read]:", read, "[Write]:", write)
+				glog.Errorln("[fanout Error]", "read OR write is nil", "[Read]:", read, "[Write]:", write)
 				return
 			}
 
@@ -271,12 +277,14 @@ func (c *Controller) fanOut(chRead <-chan interface{}, async bool) chan<- bool {
 				if !ok { // 通道被关闭
 					return
 				}
-				c.mutex.Lock() // 放在前面部分原因是防止中途 c.write 被改写
+
+				// 放在前面部分原因是防止中途 c.write 被改写
+				c.mutex.Lock()
 				for key, write := range c.write {
-					write := write // 意图在哪 ?
+					write := write
 
 					if write.ShouldCancel {
-						// 调用 CancelWrite, 在这里真正关闭 通道, 且删除
+						// 外部程序调用 CancelWrite, 在这里才是真正关闭 通道, 且删除
 						close(write.Ch)
 						delete(c.write, key)
 						continue
