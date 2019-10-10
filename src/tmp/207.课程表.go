@@ -13,9 +13,8 @@ func canFinish(numCourses int, prerequisites [][]int) bool {
 	if len(prerequisites) == 1 {
 		if prerequisites[0][0] == prerequisites[0][1] {
 			return false
-		} else {
-			return true
 		}
+		return true
 	}
 	// prerequisites[i][0] // 目标
 	// prerequisites[i][1] // 先修
@@ -25,7 +24,7 @@ func canFinish(numCourses int, prerequisites [][]int) bool {
 		enterCount[i] = 0
 	}
 	// 无前驱的点 index
-	stack := []int{}
+	queue := []int{}
 	// 构建入度数组
 	for i := range prerequisites {
 		enterCount[prerequisites[i][0]]++
@@ -34,18 +33,18 @@ func canFinish(numCourses int, prerequisites [][]int) bool {
 	// 第一次入栈
 	for k := range enterCount {
 		if enterCount[k] == 0 {
-			stack = append(stack, k)
+			queue = append(queue, k)
 		}
 	}
 
-	for len(stack) != 0 {
-		si, sl := 0, len(stack)
+	for len(queue) != 0 {
+		si, sl := 0, len(queue)
 		// newpq := append([][]int{}, prerequisites...)
 
 		for ; si < sl; si++ {
 			// pop
-			ec := stack[0]
-			stack = stack[1:]
+			ec := queue[0]
+			queue = queue[1:]
 
 			delete(enterCount, ec)
 
@@ -56,13 +55,13 @@ func canFinish(numCourses int, prerequisites [][]int) bool {
 					enterCount[prerequisites[pi][0]]--
 
 					if enterCount[prerequisites[pi][0]] == 0 {
-						stack = append(stack, prerequisites[pi][0])
+						queue = append(queue, prerequisites[pi][0])
 					}
 
 					prerequisites = append(prerequisites[:pi], prerequisites[pi+1:]...)
 					pi--
+					lenpq--
 				}
-				lenpq = len(prerequisites)
 			}
 		}
 	}
