@@ -1,5 +1,8 @@
 /*
 单源最短路径
+思路: BFS
+管理一个出度表
+从 单源 出发 到各个节点, 更新各个节点的数 value 以及造成该值的前一个节点 previousNode
 */
 package main
 
