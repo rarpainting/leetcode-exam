@@ -8,12 +8,6 @@ package tmp
 
 // @lc code=start
 func trap(height []int) int {
-	min := func(i, j int) int {
-		if i < j {
-			return i
-		}
-		return j
-	}
 
 	length := len(height)
 	left, right, result := 0, length-1, 0
@@ -52,5 +46,41 @@ func trap1(height []int) int {
 
 // stack
 func trap2(height []int) int {
-	return 0
+	stack := make([]int, 0, len(height))
+	i, res, n := 0, 0, len(height)
+
+LOOP:
+	for i < n {
+		// 栈为空 OR 当前(i)高度小于栈顶高度
+		if lenOfStack := len(stack); lenOfStack == 0 || height[i] <= height[stack[lenOfStack-1]] {
+			stack = append(stack, i)
+			i++
+		} else {
+			st := stack[lenOfStack-1]
+			stack = stack[:lenOfStack-1]
+
+			lenOfStack := len(stack)
+			if lenOfStack == 0 {
+				continue LOOP
+			}
+
+			res += (min(height[i], height[stack[lenOfStack-1]]) - height[st]) * (i - stack[lenOfStack-1] - 1)
+		}
+	}
+
+	return res
+}
+
+func max(i, j int) int {
+	if i > j {
+		return i
+	}
+	return j
+}
+
+func min(i, j int) int {
+	if i < j {
+		return i
+	}
+	return j
 }

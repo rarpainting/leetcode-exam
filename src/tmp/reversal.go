@@ -2,7 +2,7 @@
 智商有问题的记得要构建新链表
 原链表翻转好痛苦
 */
-package main
+package tmp
 
 import (
 	"bytes"
